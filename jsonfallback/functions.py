@@ -18,27 +18,28 @@ class JSONExtract(Expression):
         c.source_expression = c.source_expression.resolve_expression(query, allow_joins, reuse, summarize, for_save)
         return c
 
+    def as_postgresql(self, compiler, connection, function=None, template=None, arg_joiner=None, **extra_context):
+        params = []
+        arg_sql, arg_params = compiler.compile(self.source_expression)
+        params.extend(arg_params)
+        json_path = postgres_compile_json_path(self.path)
+        params.append(json_path)
+        template = '{} #> %s'.format(arg_sql)
+        return template, params
+
+    def as_mysql(self, compiler, connection, function=None, template=None, arg_joiner=None, **extra_context):
+        params = []
+        arg_sql, arg_params = compiler.compile(self.source_expression)
+        params.extend(arg_params)
+        json_path = mysql_compile_json_path(self.path)
+        params.append(json_path)
+        template = 'JSON_EXTRACT({}, %s)'.format(arg_sql)
+        return template, params
+
     def as_sql(self, compiler, connection, function=None, template=None, arg_joiner=None, **extra_context):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            params = []
-            arg_sql, arg_params = compiler.compile(self.source_expression)
-            params.extend(arg_params)
-            json_path = postgres_compile_json_path(self.path)
-            params.append(json_path)
-            template = '{} #> %s'.format(arg_sql)
-            return template, params
-        elif '.mysql' in connection.settings_dict['ENGINE']:
-            params = []
-            arg_sql, arg_params = compiler.compile(self.source_expression)
-            params.extend(arg_params)
-            json_path = mysql_compile_json_path(self.path)
-            params.append(json_path)
-            template = 'JSON_EXTRACT({}, %s)'.format(arg_sql)
-            return template, params
-        else:
-            raise NotSupportedError(
-                'Functions on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
-            )
+        raise NotSupportedError(
+            'Functions on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
+        )
 
     def copy(self):
         c = super().copy()
