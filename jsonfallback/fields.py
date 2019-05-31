@@ -11,6 +11,11 @@ from django_mysql.checks import mysql_connections
 from django_mysql.utils import connection_is_mariadb
 
 
+LOOKUPS_NOT_SUPPORTED_MESSAGE = (
+    'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
+)
+
+
 class JsonAdapter(jsonb.JsonAdapter):
     """
     Customized psycopg2.extras.Json to allow for a custom encoder.
@@ -128,9 +133,7 @@ class FallbackJSONField(jsonb.JSONField):
 class FallbackLookup:
 
     def as_sqlite(self, compiler, connection):
-        raise NotSupportedError(
-            'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
-        )
+        raise NotSupportedError(LOOKUPS_NOT_SUPPORTED_MESSAGE)
 
 
 @FallbackJSONField.register_lookup
@@ -278,9 +281,7 @@ class FallbackKeyTransform(jsonb.KeyTransform):
         return 'JSON_EXTRACT({}, %s)'.format(lhs), params + [json_path]
 
     def as_sqlite(self, compiler, connection):
-        raise NotSupportedError(
-            'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
-        )
+        raise NotSupportedError(LOOKUPS_NOT_SUPPORTED_MESSAGE)
 
 
 class FallbackKeyTransformFactory:
