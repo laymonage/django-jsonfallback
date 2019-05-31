@@ -127,10 +127,10 @@ class FallbackJSONField(jsonb.JSONField):
 
 class FallbackLookup:
 
-    def as_postgresql(self, qn, connection):
-        return super().as_sql(qn, connection)
+    def as_postgresql(self, compiler, connection):
+        return super().as_sql(compiler, connection)
 
-    def as_sql(self, qn, connection):
+    def as_sql(self, compiler, connection):
         raise NotSupportedError(
             'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
         )
@@ -139,9 +139,9 @@ class FallbackLookup:
 @FallbackJSONField.register_lookup
 class DataContains(FallbackLookup, lookups.DataContains):
 
-    def as_mysql(self, qn, connection):
-        lhs, lhs_params = self.process_lhs(qn, connection)
-        rhs, rhs_params = self.process_rhs(qn, connection)
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = self.process_rhs(compiler, connection)
         for i, p in enumerate(rhs_params):
             rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
         params = lhs_params + rhs_params
@@ -151,9 +151,9 @@ class DataContains(FallbackLookup, lookups.DataContains):
 @FallbackJSONField.register_lookup
 class ContainedBy(FallbackLookup, lookups.ContainedBy):
 
-    def as_mysql(self, qn, connection):
-        lhs, lhs_params = self.process_lhs(qn, connection)
-        rhs, rhs_params = self.process_rhs(qn, connection)
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = self.process_rhs(compiler, connection)
         for i, p in enumerate(rhs_params):
             rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
         params = rhs_params + lhs_params
@@ -170,8 +170,8 @@ class HasKey(FallbackLookup, lookups.HasKey):
             )
         return super().get_prep_lookup()
 
-    def as_mysql(self, qn, connection):
-        lhs, lhs_params = self.process_lhs(qn, connection)
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
         key_name = self.rhs
         path = '$.{}'.format(json.dumps(key_name))
         params = lhs_params + [path]
@@ -190,8 +190,8 @@ class JSONSequencesMixin(object):
 @FallbackJSONField.register_lookup
 class HasKeys(FallbackLookup, lookups.HasKeys):
 
-    def as_mysql(self, qn, connection):
-        lhs, lhs_params = self.process_lhs(qn, connection)
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
         paths = [
             '$.{}'.format(json.dumps(key_name))
             for key_name in self.rhs
@@ -207,8 +207,8 @@ class HasKeys(FallbackLookup, lookups.HasKeys):
 @FallbackJSONField.register_lookup
 class HasAnyKeys(FallbackLookup, lookups.HasAnyKeys):
 
-    def as_mysql(self, qn, connection):
-        lhs, lhs_params = self.process_lhs(qn, connection)
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
         paths = [
             '$.{}'.format(json.dumps(key_name))
             for key_name in self.rhs
@@ -314,8 +314,8 @@ class KeyTransformTextLookupMixin:
 
 
 class StringKeyTransformTextLookupMixin(KeyTransformTextLookupMixin):
-    def process_rhs(self, qn, connection):
-        rhs = super().process_rhs(qn, connection)
+    def process_rhs(self, compiler, connection):
+        rhs = super().process_rhs(compiler, connection)
         if '.mysql' in connection.settings_dict['ENGINE']:
             params = []
             for p in rhs[1]:
@@ -325,8 +325,8 @@ class StringKeyTransformTextLookupMixin(KeyTransformTextLookupMixin):
 
 
 class NonStringKeyTransformTextLookupMixin:
-    def process_rhs(self, qn, connection):
-        rhs = super().process_rhs(qn, connection)
+    def process_rhs(self, compiler, connection):
+        rhs = super().process_rhs(compiler, connection)
         if '.mysql' in connection.settings_dict['ENGINE']:
             params = []
             for p in rhs[1]:
@@ -345,8 +345,8 @@ class MySQLCaseInsensitiveMixin:
             lhs = 'LOWER(%s)' % lhs[0], lhs[1]
         return lhs
 
-    def process_rhs(self, qn, connection):
-        rhs = super().process_rhs(qn, connection)
+    def process_rhs(self, compiler, connection):
+        rhs = super().process_rhs(compiler, connection)
         if '.mysql' in connection.settings_dict['ENGINE']:
             rhs = 'LOWER(%s)' % rhs[0], rhs[1]
         return rhs
