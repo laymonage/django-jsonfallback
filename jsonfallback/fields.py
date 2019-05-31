@@ -127,10 +127,7 @@ class FallbackJSONField(jsonb.JSONField):
 
 class FallbackLookup:
 
-    def as_postgresql(self, compiler, connection):
-        return super().as_sql(compiler, connection)
-
-    def as_sql(self, compiler, connection):
+    def as_sqlite(self, compiler, connection):
         raise NotSupportedError(
             'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
         )
@@ -268,8 +265,6 @@ if django.VERSION >= (2, 1):
 
 
 class FallbackKeyTransform(jsonb.KeyTransform):
-    def as_postgresql(self, compiler, connection):
-        return super().as_sql(compiler, connection)
 
     def as_mysql(self, compiler, connection):
         key_transforms = [self.key_name]
@@ -281,6 +276,11 @@ class FallbackKeyTransform(jsonb.KeyTransform):
         lhs, params = compiler.compile(previous)
         json_path = mysql_compile_json_path(key_transforms)
         return 'JSON_EXTRACT({}, %s)'.format(lhs), params + [json_path]
+
+    def as_sqlite(self, compiler, connection):
+        raise NotSupportedError(
+            'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
+        )
 
 
 class FallbackKeyTransformFactory:
