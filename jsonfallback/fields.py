@@ -126,9 +126,11 @@ class FallbackJSONField(jsonb.JSONField):
 
 
 class FallbackLookup:
+
+    def as_postgresql(self, qn, connection):
+        return super().as_sql(qn, connection)
+
     def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
         raise NotSupportedError(
             'Lookups on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
         )
@@ -137,33 +139,25 @@ class FallbackLookup:
 @FallbackJSONField.register_lookup
 class DataContains(FallbackLookup, lookups.DataContains):
 
-    def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            rhs, rhs_params = self.process_rhs(qn, connection)
-            for i, p in enumerate(rhs_params):
-                rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
-            params = lhs_params + rhs_params
-            return 'JSON_CONTAINS({}, {})'.format(lhs, rhs), params
-        raise NotSupportedError('Lookup not supported for %s' % connection.settings_dict['ENGINE'])
+    def as_mysql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        rhs, rhs_params = self.process_rhs(qn, connection)
+        for i, p in enumerate(rhs_params):
+            rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
+        params = lhs_params + rhs_params
+        return 'JSON_CONTAINS({}, {})'.format(lhs, rhs), params
 
 
 @FallbackJSONField.register_lookup
 class ContainedBy(FallbackLookup, lookups.ContainedBy):
 
-    def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            rhs, rhs_params = self.process_rhs(qn, connection)
-            for i, p in enumerate(rhs_params):
-                rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
-            params = rhs_params + lhs_params
-            return 'JSON_CONTAINS({}, {})'.format(rhs, lhs), params
-        raise NotSupportedError('Lookup not supported for %s' % connection.settings_dict['ENGINE'])
+    def as_mysql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        rhs, rhs_params = self.process_rhs(qn, connection)
+        for i, p in enumerate(rhs_params):
+            rhs_params[i] = p.dumps(p.adapted)  # Convert JSONAdapter to str
+        params = rhs_params + lhs_params
+        return 'JSON_CONTAINS({}, {})'.format(rhs, lhs), params
 
 
 @FallbackJSONField.register_lookup
@@ -176,16 +170,12 @@ class HasKey(FallbackLookup, lookups.HasKey):
             )
         return super().get_prep_lookup()
 
-    def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            key_name = self.rhs
-            path = '$.{}'.format(json.dumps(key_name))
-            params = lhs_params + [path]
-            return "JSON_CONTAINS_PATH({}, 'one', %s)".format(lhs), params
-        raise NotSupportedError('Lookup not supported for %s' % connection.settings_dict['ENGINE'])
+    def as_mysql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        key_name = self.rhs
+        path = '$.{}'.format(json.dumps(key_name))
+        params = lhs_params + [path]
+        return "JSON_CONTAINS_PATH({}, 'one', %s)".format(lhs), params
 
 
 class JSONSequencesMixin(object):
@@ -200,43 +190,35 @@ class JSONSequencesMixin(object):
 @FallbackJSONField.register_lookup
 class HasKeys(FallbackLookup, lookups.HasKeys):
 
-    def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            paths = [
-                '$.{}'.format(json.dumps(key_name))
-                for key_name in self.rhs
-            ]
-            params = lhs_params + paths
+    def as_mysql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        paths = [
+            '$.{}'.format(json.dumps(key_name))
+            for key_name in self.rhs
+        ]
+        params = lhs_params + paths
 
-            sql = ['JSON_CONTAINS_PATH(', lhs, ", 'all', "]
-            sql.append(', '.join('%s' for _ in paths))
-            sql.append(')')
-            return ''.join(sql), params
-        raise NotSupportedError('Lookup not supported for %s' % connection.settings_dict['ENGINE'])
+        sql = ['JSON_CONTAINS_PATH(', lhs, ", 'all', "]
+        sql.append(', '.join('%s' for _ in paths))
+        sql.append(')')
+        return ''.join(sql), params
 
 
 @FallbackJSONField.register_lookup
 class HasAnyKeys(FallbackLookup, lookups.HasAnyKeys):
 
-    def as_sql(self, qn, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(qn, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
-            lhs, lhs_params = self.process_lhs(qn, connection)
-            paths = [
-                '$.{}'.format(json.dumps(key_name))
-                for key_name in self.rhs
-            ]
-            params = lhs_params + paths
+    def as_mysql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        paths = [
+            '$.{}'.format(json.dumps(key_name))
+            for key_name in self.rhs
+        ]
+        params = lhs_params + paths
 
-            sql = ['JSON_CONTAINS_PATH(', lhs, ", 'one', "]
-            sql.append(', '.join('%s' for _ in paths))
-            sql.append(')')
-            return ''.join(sql), params
-        raise NotSupportedError('Lookup not supported for %s' % connection.settings_dict['ENGINE'])
+        sql = ['JSON_CONTAINS_PATH(', lhs, ", 'one', "]
+        sql.append(', '.join('%s' for _ in paths))
+        sql.append(')')
+        return ''.join(sql), params
 
 
 class JSONValue(Func):
@@ -286,23 +268,19 @@ if django.VERSION >= (2, 1):
 
 
 class FallbackKeyTransform(jsonb.KeyTransform):
-    def as_sql(self, compiler, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
-            return super().as_sql(compiler, connection)
-        elif '.mysql' in connection.settings_dict['ENGINE']:
-            key_transforms = [self.key_name]
-            previous = self.lhs
-            while isinstance(previous, FallbackKeyTransform):
-                key_transforms.insert(0, previous.key_name)
-                previous = previous.lhs
+    def as_postgresql(self, compiler, connection):
+        return super().as_sql(compiler, connection)
 
-            lhs, params = compiler.compile(previous)
-            json_path = mysql_compile_json_path(key_transforms)
-            return 'JSON_EXTRACT({}, %s)'.format(lhs), params + [json_path]
+    def as_mysql(self, compiler, connection):
+        key_transforms = [self.key_name]
+        previous = self.lhs
+        while isinstance(previous, FallbackKeyTransform):
+            key_transforms.insert(0, previous.key_name)
+            previous = previous.lhs
 
-        raise NotSupportedError(
-            'Transforms on JSONFields are only supported on PostgreSQL and MySQL at the moment.'
-        )
+        lhs, params = compiler.compile(previous)
+        json_path = mysql_compile_json_path(key_transforms)
+        return 'JSON_EXTRACT({}, %s)'.format(lhs), params + [json_path]
 
 
 class FallbackKeyTransformFactory:
