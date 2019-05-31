@@ -37,9 +37,9 @@ class FallbackJSONField(jsonb.JSONField):
         self.decoder = json.JSONDecoder()
 
     def db_type(self, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'postgresql':
             return super().db_type(connection)
-        elif '.mysql' in connection.settings_dict['ENGINE']:
+        elif connection.vendor == 'mysql':
             return 'json'
         else:
             data = self.db_type_parameters(connection)
@@ -55,7 +55,7 @@ class FallbackJSONField(jsonb.JSONField):
 
     def get_db_prep_value(self, value, connection, prepared=False):
         value = super().get_db_prep_value(value, connection, prepared)
-        if '.postgresql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'postgresql':
             return value
         elif value is None:
             return None
@@ -63,9 +63,9 @@ class FallbackJSONField(jsonb.JSONField):
             return value.dumps(value.adapted)
 
     def from_db_value(self, value, expression, connection):
-        if '.postgresql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'postgresql':
             return value
-        elif '.postgresql' in connection.settings_dict['ENGINE']:
+        elif connection.vendor == 'postgresql':
             if isinstance(value, str):
                 return self.decoder.decode(value)
             else:
@@ -251,18 +251,17 @@ if django.VERSION >= (2, 1):
 
         def process_rhs(self, compiler, connection):
             rhs, rhs_params = super().process_rhs(compiler, connection)
-            if '.mysql' in connection.settings_dict['ENGINE']:
-                if not connection_is_mariadb(connection):
-                    func_params = []
-                    new_params = []
-                    for i, p in enumerate(rhs_params):
-                        if not hasattr(p, '_prepare') and p is not None:
-                            func, this_func_param = JSONValue(p).as_sql(compiler, connection)
-                            func_params.append(func)
-                            new_params += this_func_param
-                        else:
-                            func_params.append(p)
-                    rhs, rhs_params = rhs % tuple(func_params), new_params
+            if connection.vendor == 'mysql' and not connection_is_mariadb(connection):
+                func_params = []
+                new_params = []
+                for i, p in enumerate(rhs_params):
+                    if not hasattr(p, '_prepare') and p is not None:
+                        func, this_func_param = JSONValue(p).as_sql(compiler, connection)
+                        func_params.append(func)
+                        new_params += this_func_param
+                    else:
+                        func_params.append(p)
+                rhs, rhs_params = rhs % tuple(func_params), new_params
 
             return rhs, rhs_params
 
@@ -317,7 +316,7 @@ class KeyTransformTextLookupMixin:
 class StringKeyTransformTextLookupMixin(KeyTransformTextLookupMixin):
     def process_rhs(self, compiler, connection):
         rhs = super().process_rhs(compiler, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'mysql':
             params = []
             for p in rhs[1]:
                 params.append(json.dumps(p))
@@ -328,7 +327,7 @@ class StringKeyTransformTextLookupMixin(KeyTransformTextLookupMixin):
 class NonStringKeyTransformTextLookupMixin:
     def process_rhs(self, compiler, connection):
         rhs = super().process_rhs(compiler, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'mysql':
             params = []
             for p in rhs[1]:
                 val = json.loads(p)
@@ -342,13 +341,13 @@ class NonStringKeyTransformTextLookupMixin:
 class MySQLCaseInsensitiveMixin:
     def process_lhs(self, compiler, connection, lhs=None):
         lhs = super().process_lhs(compiler, connection, lhs=None)
-        if '.mysql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'mysql':
             lhs = 'LOWER(%s)' % lhs[0], lhs[1]
         return lhs
 
     def process_rhs(self, compiler, connection):
         rhs = super().process_rhs(compiler, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'mysql':
             rhs = 'LOWER(%s)' % rhs[0], rhs[1]
         return rhs
 
@@ -357,7 +356,7 @@ class MySQLCaseInsensitiveMixin:
 class KeyTransformExact(builtin_lookups.Exact):
     def process_rhs(self, compiler, connection):
         rhs, rhs_params = super().process_rhs(compiler, connection)
-        if '.mysql' in connection.settings_dict['ENGINE']:
+        if connection.vendor == 'mysql':
             func_params = []
             new_params = []
 
