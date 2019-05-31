@@ -210,6 +210,17 @@ class HasKeys(FallbackLookup, lookups.HasKeys):
         sql.append(')')
         return ''.join(sql), params
 
+    def as_sqlite(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        paths = [
+            '$.{}'.format(json.dumps(key_name))
+            for key_name in self.rhs
+        ]
+        params = lhs_params + paths
+
+        sql = ("json_type({}, %s) IS NOT NULL".format(lhs) for _ in paths)
+        return ' AND '.join(sql), params
+
 
 @FallbackJSONField.register_lookup
 class HasAnyKeys(FallbackLookup, lookups.HasAnyKeys):

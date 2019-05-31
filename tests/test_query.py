@@ -85,10 +85,9 @@ def test_query_has_key(books):
 
 
 @pytest.mark.django_db
-@xfail
 def test_query_has_keys(books):
-    assert Book.objects.filter(data__has_keys=['title']).count() == 2
-    assert Book.objects.filter(data__has_keys=['foo']).count() == 0
+    assert Book.objects.filter(data__has_keys=['title', 'author']).count() == 2
+    assert Book.objects.filter(data__has_keys=['title', 'foo']).count() == 0
 
 
 @pytest.mark.django_db
