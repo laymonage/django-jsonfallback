@@ -177,6 +177,13 @@ class HasKey(FallbackLookup, lookups.HasKey):
         params = lhs_params + [path]
         return "JSON_CONTAINS_PATH({}, 'one', %s)".format(lhs), params
 
+    def as_sqlite(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        key_name = self.rhs
+        path = '$.{}'.format(json.dumps(key_name))
+        params = lhs_params + [path]
+        return "json_type({}, %s) IS NOT NULL".format(lhs), params
+
 
 class JSONSequencesMixin(object):
     def get_prep_lookup(self):

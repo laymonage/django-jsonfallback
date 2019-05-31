@@ -79,7 +79,6 @@ def test_query_contained_by(books):
 
 
 @pytest.mark.django_db
-@xfail
 def test_query_has_key(books):
     assert Book.objects.filter(data__has_key='title').count() == 2
     assert Book.objects.filter(data__has_key='foo').count() == 0
