@@ -338,18 +338,15 @@ class NonStringKeyTransformTextLookupMixin:
         return rhs
 
 
-class MySQLCaseInsensitiveMixin:
-    def process_lhs(self, compiler, connection, lhs=None):
-        lhs = super().process_lhs(compiler, connection, lhs=None)
-        if connection.vendor == 'mysql':
-            lhs = 'LOWER(%s)' % lhs[0], lhs[1]
-        return lhs
-
-    def process_rhs(self, compiler, connection):
-        rhs = super().process_rhs(compiler, connection)
-        if connection.vendor == 'mysql':
-            rhs = 'LOWER(%s)' % rhs[0], rhs[1]
-        return rhs
+class CaseInsensitiveMixin:
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = super().process_lhs(compiler, connection, lhs=None)
+        lhs = 'LOWER(%s)' % lhs
+        rhs, rhs_params, = super().process_rhs(compiler, connection)
+        rhs = 'LOWER(%s)' % rhs
+        params = lhs_params + rhs_params
+        rhs = self.get_rhs_op(connection, rhs)
+        return '%s %s' % (lhs, rhs), params
 
 
 @FallbackKeyTransform.register_lookup
@@ -378,12 +375,12 @@ class KeyTransformExact(builtin_lookups.Exact):
 
 
 @FallbackKeyTransform.register_lookup
-class KeyTransformIExact(MySQLCaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IExact):
+class KeyTransformIExact(CaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IExact):
     pass
 
 
 @FallbackKeyTransform.register_lookup
-class KeyTransformIContains(MySQLCaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IContains):
+class KeyTransformIContains(CaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IContains):
     pass
 
 
@@ -398,7 +395,7 @@ class KeyTransformStartsWith(StringKeyTransformTextLookupMixin, builtin_lookups.
 
 
 @FallbackKeyTransform.register_lookup
-class KeyTransformIStartsWith(MySQLCaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IStartsWith):
+class KeyTransformIStartsWith(CaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IStartsWith):
     pass
 
 
@@ -408,7 +405,7 @@ class KeyTransformEndsWith(StringKeyTransformTextLookupMixin, builtin_lookups.En
 
 
 @FallbackKeyTransform.register_lookup
-class KeyTransformIEndsWith(MySQLCaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IEndsWith):
+class KeyTransformIEndsWith(CaseInsensitiveMixin, StringKeyTransformTextLookupMixin, builtin_lookups.IEndsWith):
     pass
 
 
