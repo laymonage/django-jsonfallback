@@ -65,7 +65,7 @@ class FallbackJSONField(jsonb.JSONField):
     def from_db_value(self, value, expression, connection):
         if connection.vendor == 'postgresql':
             return value
-        elif connection.vendor == 'postgresql':
+        elif connection.vendor == 'mysql':
             if isinstance(value, str):
                 return self.decoder.decode(value)
             else:
