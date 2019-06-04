@@ -314,14 +314,13 @@ class KeyTransformTextLookupMixin:
 
 
 class StringKeyTransformTextLookupMixin(KeyTransformTextLookupMixin):
-    def process_rhs(self, compiler, connection):
-        rhs = super().process_rhs(compiler, connection)
-        if connection.vendor == 'mysql':
-            params = []
-            for p in rhs[1]:
-                params.append(json.dumps(p))
-            return rhs[0], params
-        return rhs
+    def as_mysql(self, compiler, connection):
+        lhs, lhs_params = super().process_lhs(compiler, connection)
+        rhs, rhs_params = super().process_rhs(compiler, connection)
+        rhs_params = [json.dumps(p) for p in rhs_params]
+        params = lhs_params + rhs_params
+        rhs = self.get_rhs_op(connection, rhs)
+        return '%s %s' % (lhs, rhs), params
 
 
 class NonStringKeyTransformTextLookupMixin:
